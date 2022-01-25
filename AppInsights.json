@@ -32,7 +32,7 @@
   "outputs": {
       "AppInsightsInstrumentationKey": {
           "type": "string",
-          "value": "[reference(resourceId('Microsoft.Insights/components', variables('AppInsightsName'))).InstrumentationKey]"
+          "value": "[reference(resourceId('Microsoft.Insights/components', parameters('AppInsightsName'))).InstrumentationKey]"
       }
 }
 }
