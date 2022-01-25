@@ -1,0 +1,415 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.2",
+    "metadata": {
+    "comments": "This template was developed for demonstration purposes.",
+    "author": "Mohit Sharma"
+  },
+    "parameters": {
+    //Webapp Name prefix
+    "Webapp Name prefix": {
+      "type": "string",
+      "defaultValue": "ghost-azure",
+      "metadata": {
+          "description": "The name will concatinated with unique with an ID to make 2 unique names"
+        }
+    },
+    //First Webapp location
+    "1st WebApp Location": {
+      "type": "string",
+      "allowedValues": [
+        "West Europe",
+        "North Europe"
+      ],
+      "defaultValue": "North Europe"
+    },
+    //Second Webapp location
+    "2nd WebApp Location": {
+      "type": "string",
+      "allowedValues": [
+        "West Europe",
+        "North Europe"
+      ],
+      "defaultValue": "West Europe"
+    },
+    "Sku": {
+      "type": "string",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "defaultValue": "Standard",
+      "metadata": {
+          "description": "This is common for both Webapps"
+        }
+    },
+    "Worker Size": {
+      "type": "string",
+      "allowedValues": [
+        "1",
+        "2",
+        "3"
+      ],
+      "defaultValue": "2",
+      "metadata": {
+          "description": "This is common for both Webapps"
+        }
+    },
+    //Ghost email configuration
+    "Email Service": {
+      "type": "string",
+      "allowedValues": [
+        "Not configured",
+        "Mailgun",
+        "Gmail",
+        "SendGrid"
+      ],
+      "defaultValue": "Not configured",
+      "metadata": {
+          "description": "Email service for Ghost engine"
+        }
+    },
+    "Email Username": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "Email Password": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "Email From Address": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    // Code repository details
+    "repoUrl": {
+      "type": "string",
+      "defaultValue": "https://github.com/dashanan13/Ghost-Azure-public"
+    },
+    "branch": {
+      "type": "string",
+      "defaultValue": "master"
+    }
+  
+  },
+    
+  "variables": {
+    "skuMapping": "[if(equals(parameters('Sku'), 'Free'), 'F', if(equals(parameters('Sku'), 'Shared'), 'D', if(equals(parameters('Sku'), 'Basic'), 'B', if(equals(parameters('Sku'), 'Standard'), 'S', if(equals(parameters('sku'), 'Premium'), 'P', 'F')))))]",
+    "sku": "[concat(variables('skuMapping'), parameters('Worker Size'))]",
+
+    "frontdoorname": "[concat(parameters('Webapp Name prefix'), '-', uniqueString(resourceGroup().id))]",
+    "uniquewebappname1" : "[concat(parameters('Webapp Name prefix'), '1-', uniqueString(resourceGroup().id))]",
+    "uniquewebappname2" : "[concat(parameters('Webapp Name prefix'), '2-', uniqueString(resourceGroup().id))]",
+    
+    //"frontdooraddress": "[concat(parameters('Webapp Name prefix'), '-', uniqueString(resourceGroup().id), '.azurefd.net')]",
+    "webapp1address": "[concat(variables('uniquewebappname1'), '.azurewebsites.net')]",
+    "webapp2address": "[concat(variables('uniquewebappname2'), '.azurewebsites.net')]",
+    
+    "appInsightsName1": "[concat(variables('uniquewebappname1'), '-insights')]",
+    "appInsightsName2": "[concat(variables('uniquewebappname2'), '-insights')]",
+
+    "hostingPlanName1": "[concat(variables('uniquewebappname1'), '-plan')]",
+    "hostingPlanName2": "[concat(variables('uniquewebappname2'), '-plan')]",
+
+    "slotname": "staging",
+
+    "frontdoorLocation": "global",
+
+    "wafPolicyNameForFrontDoor": "wafPolicyForFrontDoor",
+
+    "linkwaf": "https://raw.githubusercontent.com/dashanan13/Ghost-Azure-public/master/templates/waf.json",
+    "linkwebapp": "https://raw.githubusercontent.com/bumgardnera07/TestArmTemplates/main/WebApp.json",
+    "linkweappslot": "https://raw.githubusercontent.com/bumgardnera07/TestArmTemplates/main/Slot.json",
+    "linkappinsight": "https://raw.githubusercontent.com/bumgardnera07/TestArmTemplates/main/AppInsights.json",
+    "linkwebappplan": "https://raw.githubusercontent.com/dashanan13/Ghost-Azure-public/master/templates/webappplan.json",
+    "linkwebappipsec": "https://raw.githubusercontent.com/dashanan13/Ghost-Azure-public/master/templates/webappipsec.json",
+    "linkfrontdoor": "https://raw.githubusercontent.com/dashanan13/Ghost-Azure-public/master/templates/frontdoorsetup.json"
+  },
+
+  "resources": [
+
+    //Webapp plan 1
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "webappplan1",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkwebappplan')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappPlanName": {"value": "[variables('hostingPlanName1')]"},
+          "Location": {"value": "[parameters('1st WebApp Location')]"},
+          "Sku": {"value": "[variables('sku')]"}
+        }
+      }
+    },
+
+    //Webapp plan 2
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "webappplan2",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkwebappplan')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappPlanName": {"value": "[variables('hostingPlanName2')]"},
+          "Location": {"value": "[parameters('2nd WebApp Location')]"},
+          "Sku": {"value": "[variables('sku')]"}
+        }
+      }
+    },
+
+    //Webapp insight 1
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "webappinsight1",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkappinsight')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappName": {"value": "[variables('uniquewebappname1')]"},
+          "Location": {"value": "[parameters('1st WebApp Location')]"},
+          "AppInsightsName": {"value": "[variables('appInsightsName1')]"}
+        }
+      }
+    },
+
+    //Webapp insight 2
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "webappinsight2",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkappinsight')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappName": {"value": "[variables('uniquewebappname2')]"},
+          "Location": {"value": "[parameters('2nd WebApp Location')]"},
+          "AppInsightsName": {"value": "[variables('appInsightsName2')]"}
+        }
+      }
+    },
+
+    //Webapp 1
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "webapp1",
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'webappplan1')]",
+        "[resourceId('Microsoft.Resources/deployments', 'webappinsight1')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkwebapp')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappName": {"value": "[variables('uniquewebappname1')]"},
+          "WebappPlanName": {"value": "[variables('hostingPlanName1')]"},
+          "AppInsightsName": {"value": "[variables('appInsightsName1')]"},
+          "Location": {"value": "[parameters('1st WebApp Location')]"},
+          "Email Service": {"value": "[parameters('Email Service')]"},
+          "Email Username": {"value": "[parameters('Email Username')]"},
+          "Email Password": {"value": "[parameters('Email Password')]"},
+          "Email From Address": {"value": "[parameters('Email From Address')]"},
+          "RepoUrl": {"value": "[parameters('repoUrl')]"},
+          "Branch": {"value": "[parameters('branch')]"},
+		  "AppInsightsInstrumentationKey": {"value": "reference('webappinsight1').outputs.AppInsightsInstrumentationKey.value"}
+        }
+      }
+    },
+
+    //Webapp 2
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "webapp2",
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'webappplan2')]",
+        "[resourceId('Microsoft.Resources/deployments', 'webappinsight2')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkwebapp')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappName": {"value": "[variables('uniquewebappname2')]"},
+          "WebappPlanName": {"value": "[variables('hostingPlanName2')]"},
+          "AppInsightsName": {"value": "[variables('appInsightsName2')]"},
+          "Location": {"value": "[parameters('2nd WebApp Location')]"},
+          "Email Service": {"value": "[parameters('Email Service')]"},
+          "Email Username": {"value": "[parameters('Email Username')]"},
+          "Email Password": {"value": "[parameters('Email Password')]"},
+          "Email From Address": {"value": "[parameters('Email From Address')]"},
+          "RepoUrl": {"value": "[parameters('repoUrl')]"},
+          "Branch": {"value": "[parameters('branch')]"},
+		  "AppInsightsInstrumentationKey": {"value": "reference('webappinsight2').outputs.AppInsightsInstrumentationKey.value"}
+        }
+      }
+    },
+
+    //Webapp slot 1
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "webappslot1",
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'webappplan1')]",
+        "[resourceId('Microsoft.Resources/deployments', 'webappinsight1')]",
+        "[resourceId('Microsoft.Resources/deployments', 'webapp1')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkweappslot')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappName": {"value": "[variables('uniquewebappname1')]"},
+          "WebappPlanName": {"value": "[variables('hostingPlanName1')]"},
+          "AppInsightsName": {"value": "[variables('appInsightsName1')]"},
+          "Name": {"value": "[variables('slotname')]"},
+          "Location": {"value": "[parameters('1st WebApp Location')]"},
+          "Email Service": {"value": "[parameters('Email Service')]"},
+          "Email Username": {"value": "[parameters('Email Username')]"},
+          "Email Password": {"value": "[parameters('Email Password')]"},
+          "Email From Address": {"value": "[parameters('Email From Address')]"},
+		  "AppInsightsInstrumentationKey": {"value": "reference('webappinsight1').outputs.AppInsightsInstrumentationKey.value"}
+        }
+      }
+    },
+
+    //Webapp slot 2
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "webappslot2",
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'webappplan2')]",
+        "[resourceId('Microsoft.Resources/deployments', 'webappinsight2')]",
+        "[resourceId('Microsoft.Resources/deployments', 'webapp2')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkweappslot')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappName": {"value": "[variables('uniquewebappname2')]"},
+          "WebappPlanName": {"value": "[variables('hostingPlanName2')]"},
+          "AppInsightsName": {"value": "[variables('appInsightsName2')]"},
+          "Name": {"value": "[variables('slotname')]"},
+          "Location": {"value": "[parameters('2nd WebApp Location')]"},
+          "Email Service": {"value": "[parameters('Email Service')]"},
+          "Email Username": {"value": "[parameters('Email Username')]"},
+          "Email Password": {"value": "[parameters('Email Password')]"},
+          "Email From Address": {"value": "[parameters('Email From Address')]"},
+		  "AppInsightsInstrumentationKey": {"value": "reference('webappinsight2').outputs.AppInsightsInstrumentationKey.value"}
+        }
+      }
+    },
+
+    //WAF
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "frontdoorwaf",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkwaf')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "Name": {"value": "[variables('wafPolicyNameForFrontDoor')]"},
+          "Location": {"value": "[variables('frontdoorLocation')]"}
+        }
+      }
+    },
+
+    //Front door
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "frontdoor",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkfrontdoor')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "Name": {"value": "[variables('frontdoorname')]"},
+          "Location": {"value": "[variables('frontdoorLocation')]"},
+          "Webapp1Address": {"value": "[variables('webapp1address')]"},
+          "Webapp2Address": {"value": "[variables('webapp2address')]"},
+          "WAFName": {"value": "[variables('wafPolicyNameForFrontDoor')]"}
+        }
+      }
+    },
+
+    //Update webapps with IP restriction that binds it to frontdoor
+    //Update webapp 1
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "ipsecwebapp1",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkwebappipsec')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappName": {"value": "[variables('uniquewebappname1')]"},
+          "Frontdoorid": {"value": "[reference('frontdoor').outputs.frontdoorid.value]"}   // This value is passed from frontdoor as output after its creation and then used as input here to set IP restrictions
+        }
+      }
+    },
+
+    //Update webapp 2
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "ipsecwebapp2",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('linkwebappipsec')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "WebappName": {"value": "[variables('uniquewebappname2')]"},
+          "Frontdoorid": {"value": "[reference('frontdoor').outputs.frontdoorid.value]"}
+        }
+      }
+    }
+
+  ],
+  "outputs": {
+    "frontdoorid": {
+      "type": "string",
+      "value": "[reference('frontdoor').outputs.frontdoorid.value]"
+    }      
+  }
+}
