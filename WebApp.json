@@ -35,6 +35,9 @@
     },
     "Branch": {
       "type": "string"
+    },
+    "AppInsightsInstrumentationKey": {
+      "type": "string"
     }
   },
   "functions": [],
@@ -80,7 +83,8 @@
             "mail__options__auth__pass": "[parameters('Email Password')]",
             "mail__from": "[parameters('Email From Address')]",
             "WEBSITE_NODE_DEFAULT_VERSION": "~10",
-            "NODE_ENV": "production"
+            "NODE_ENV": "production",
+            "APPINSIGHTS_INSTRUMENTATION_KEY": "[parameters('AppInsightsInstrumentationKey')]"
           }
         },
 
