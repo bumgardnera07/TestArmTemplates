@@ -231,7 +231,7 @@
           "Email From Address": {"value": "[parameters('Email From Address')]"},
           "RepoUrl": {"value": "[parameters('repoUrl')]"},
           "Branch": {"value": "[parameters('branch')]"},
-		  "AppInsightsInstrumentationKey": {"value": "reference('webappinsight1').outputs.AppInsightsInstrumentationKey.value"}
+		  "AppInsightsInstrumentationKey": {"value": "[reference('webappinsight1').outputs.AppInsightsInstrumentationKey.value]"}
         }
       }
     },
@@ -262,7 +262,7 @@
           "Email From Address": {"value": "[parameters('Email From Address')]"},
           "RepoUrl": {"value": "[parameters('repoUrl')]"},
           "Branch": {"value": "[parameters('branch')]"},
-		  "AppInsightsInstrumentationKey": {"value": "reference('webappinsight2').outputs.AppInsightsInstrumentationKey.value"}
+		  "AppInsightsInstrumentationKey": {"value": "[reference('webappinsight2').outputs.AppInsightsInstrumentationKey.value]"}
         }
       }
     },
@@ -293,7 +293,7 @@
           "Email Username": {"value": "[parameters('Email Username')]"},
           "Email Password": {"value": "[parameters('Email Password')]"},
           "Email From Address": {"value": "[parameters('Email From Address')]"},
-		  "AppInsightsInstrumentationKey": {"value": "reference('webappinsight1').outputs.AppInsightsInstrumentationKey.value"}
+		  "AppInsightsInstrumentationKey": {"value": "[reference('webappinsight1').outputs.AppInsightsInstrumentationKey.value]"}
         }
       }
     },
@@ -324,7 +324,7 @@
           "Email Username": {"value": "[parameters('Email Username')]"},
           "Email Password": {"value": "[parameters('Email Password')]"},
           "Email From Address": {"value": "[parameters('Email From Address')]"},
-		  "AppInsightsInstrumentationKey": {"value": "reference('webappinsight2').outputs.AppInsightsInstrumentationKey.value"}
+		  "AppInsightsInstrumentationKey": {"value": "[reference('webappinsight2').outputs.AppInsightsInstrumentationKey.value]"}
         }
       }
     },
